@@ -1,0 +1,1072 @@
+---
+title: "analyses_script"
+output: pdf_document
+date: "2023-08-03"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#load packages
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(GGally)
+library(ggpubr)
+library(ggBubbles)
+
+```
+
+Water parameters
+
+```{r}
+#load data spreadsheet into dat_water
+dat_water <- read_excel("Data/YSA_waterData.xlsx", sheet = 1, 
+                        range = cell_cols("A:K"))
+
+names(dat_water) = c("location_num", "water_location","water_tempC","water_pH","water_ppM","water_uscm","Amonia_mgL","Turbidity_NTU","Nitrate_mgL","Natural","Flowing")
+
+#remove celsius characters and conver to numeric
+dat_water$water_tempC <- as.numeric(gsub(pattern = "'C", replacement = "", dat_water$water_tempC))
+
+#replace missing vsalues with the lowest measurable value -0.05
+dat_water$Nitrate_mgL[is.na(dat_water$Nitrate_mgL)] <- 0.25
+
+#Plot for temp 'C
+p1 <- dat_water %>% ggplot(aes(x = location_num, y = water_tempC)) + 
+  geom_col(fill="#ffc87a") +
+  labs(x = "site location", y = "'C", title="Water temperature") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#Plot for water pH
+p2 <- dat_water %>% ggplot(aes(x = location_num, y = water_pH)) + 
+  geom_col(fill="#86eee7") +
+  labs(x = "site location", y = "pH",title="Water pH") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Plot for water ppM
+p3 <- dat_water %>% ggplot(aes(x = location_num, y = water_ppM)) + 
+  geom_col(fill="#a3ecff") +
+  labs(x = "site location", y = "ppM",title="Water mineral concentration") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Plot for water μscm
+p4 <- dat_water %>% ggplot(aes(x = location_num, y = water_uscm)) + 
+  geom_col(fill="#a3d1ff") +
+  labs(x = "site location", y = "us/cm",title="Water salt concentration") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Plot for water Amonia_mgL
+p5 <- dat_water %>% ggplot(aes(x = location_num, y = Amonia_mgL)) + 
+  geom_col(fill="#13b469") +
+  labs(x = "site location", y = "mg/L",title="Water ammonia") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Plot for water Turbidity_NTU
+p6 <- dat_water %>% ggplot(aes(x = location_num, y = Turbidity_NTU)) + 
+  geom_col(fill="#52c6ff") +
+  labs(x = "site location", y = "NTU",title="Water turbidity") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Plot for water Nitrate_mgL
+p7 <- dat_water %>% ggplot(aes(x = location_num, y = Nitrate_mgL)) + 
+  geom_col(fill="#0091ff") +
+  labs(x = "site location", y = "mg/L",title="Water nitrate") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#combine graphs into a figure
+p1 + p2 + p6 +
+  plot_layout(nrow = 3) + 
+  plot_annotation(tag_levels = "A")
+ggsave("water_plot1.png", width = 16, height = 12, units = "cm")
+
+p3 + p4 + p5 + p7 +
+  plot_layout(nrow = 4) + 
+  plot_annotation(tag_levels = "A")
+
+ggsave("water_plot2.png", width = 16, height = 16, units = "cm")
+
+```
+
+categorical graph
+```{r}
+#add columns
+dat_water$Natural_Flowing <- paste(dat_water$Natural, dat_water$Flowing, sep = "_")
+#make graph for categories
+dat_water$Natural_Flowing_col <- case_when(dat_water$Natural_Flowing == "Natural_Flowing" ~ "#1B9E77",
+                                            dat_water$Natural_Flowing == "Natural_Still" ~ "#66A61E",
+                                            dat_water$Natural_Flowing == "Artificial_Flowing" ~ "#D95F02",
+                                            dat_water$Natural_Flowing == "Artificial_Still" ~ "#CC6666")
+  
+p8 <- dat_water %>% ggplot(aes(x = Natural, y = Flowing, colour = location_num)) + 
+  geom_point(position = position_surround(), size = 5) +
+  labs(x = "Natural", y = "Flowing",title="Water types") +
+  theme_classic() +
+  scale_colour_manual(values = c("#1B9E77", "#1B9E77", "#1B9E77", "#1B9E77", "#1B9E77", "#CC6666", "#CC6666", "#D95F02", "#D95F02","#CC6666", "#D95F02", "#1B9E77", "#1B9E77", "#D95F02", "#CC6666", "#1B9E77", "#CC6666", "#D95F02", "#66A61E", "#66A61E")) + 
+  theme(plot.title = element_text(hjust = 0.5), legend.key.height = unit(0.1, 'cm'))
+ggsave("Natural_FlowingPlot.png", width = 16, height = 12, units = "cm")
+```
+
+pairwaise relationships among RG_ratio and water parameters
+```{r}
+ggpairs(dat_water, columns = 3:9) 
+
+ggsave("water_corr.png", width = 12, height = 12, units = "cm", scale = 1.2)
+```
+
+Experiment 1
+
+```{r}
+#load data spreadsheet into dat_Original
+dat_Original <- read_excel("Data/YSA_waterData.xlsx", sheet = 2, col_types=c("numeric","numeric","text"), range=cell_cols("A:C"))
+names(dat_Original) = c("tea_num:", "weight","tea_type")
+#dat_Original
+
+
+#Finding initial mean and sd of R and G teabags in dat_Original
+dat_Original %>% 
+  group_by(tea_type) %>%
+  summarise_at(vars(weight), list(mean = mean, sd = sd)) -> dat_Mean
+
+
+#graph for original weight of teabags
+means1 <- ggplot(dat_Mean, aes(x = tea_type, y = mean)) + 
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.3) +
+  theme_classic() +
+  geom_point(size = 2) + 
+  ylim(0, 2.5) +
+  labs(x = "Type of tea", y = "Weight [g]",title="Tea bag weight before") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+#combining graphs into a figure
+means1 + means2
+ggsave("MeansGraph.png", width = 16, height = 8, units = "cm")
+```
+
+
+```{r}
+#load data spreadsheet into sheet_names
+sheet_names <- excel_sheets("Data/TeaExperiment1_.xlsx")
+sheet_names <- sheet_names[-1]
+list_All <- lapply(sheet_names, function(x) {as.data.frame(read_excel("Data/TeaExperiment1_.xlsx", sheet = x))}) #read all sheets to list
+names(list_All) <- sheet_names
+dat_After <- do.call(rbind, list_All)
+names(dat_After)
+str(dat_After)
+
+names(dat_After) <- c("weight2","tea_type2","info","location")
+#transforming data into usable state
+dat_After %>% 
+  group_by(tea_type2) %>%
+  summarise_at(vars(weight2), list(mean = mean, sd = sd)) %>%
+  filter(complete.cases(.)) -> dat_Mean_A
+
+dat_After %>% 
+  group_by(tea_type2, .drop = FALSE) %>% count()
+
+#graph for original weight of teabags
+means2 <- ggplot(dat_Mean_A, aes(x = tea_type2, y = mean)) + 
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.3) +
+  theme_classic() +
+  geom_point(size = 2) + 
+  ylim(0, 2.5) +
+  labs(x = "Type of tea", y = "Weight [g]",title="Tea bag weight after") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#percent weight change for G
+100 - 0.6233881	/ 2.141744 * 100 #71% loss
+#percent weight change for R
+100 - 1.2017013 / 1.845925 * 100 #35% loss
+
+#error propagation for G
+0.6233881	/ 2.141744 * sqrt((0.04704403 /2.141744)^2 + (0.2581518	/0.6233881)^2 )*100 # 12.07029
+#error propagation for R
+1.2017013 / 1.845925 * sqrt((0.04811922	/1.845925)^2 + (0.2953956	/1.2017013 )^2 )*100 # 16.09231
+
+#lnCVR effect size - change of variation on log scale:
+#G
+log((0.2581518 / 0.6233881) / (0.04704403/2.141744)) #2.93667
+#R
+log((0.2953956	/1.2017013) / (0.04811922	/1.845925)) #2.243876
+
+```
+
+
+#Site-specific effects
+``` {r}
+#load data spreadsheet into sheet_names
+sheet_names <- excel_sheets("Data/TeaExperiment1_.xlsx")
+sheet_names <- sheet_names[-1]
+list_All <- lapply(sheet_names, function(x) {as.data.frame(read_excel("Data/TeaExperiment1_.xlsx", sheet = x))}) #read all sheets to list
+names(list_All) <- sheet_names
+dat_After <- do.call(rbind, list_All)
+names(dat_After)
+str(dat_After)
+dim(dat_After)
+
+names(dat_After) <- c("weight2","tea_type2","info","location")
+
+dat_After %>% 
+  group_by(location, .drop = FALSE) %>%
+  count() #just counts all rows
+
+#count bags with holes
+dat_After %>% filter(info == "holes") %>% count() #63
+dat_After$info
+
+#remove all bags with holes or no weights
+dat_After2 <- dat_After %>% 
+  filter(is.na(info) | info != "holes") %>%
+  filter(!is.na(weight2))
+  
+dim(dat_After2) #144
+dat_After2$weight2
+  
+#count by site
+dat_After2 %>% 
+  group_by(location) %>%
+  count()
+
+144/16
+
+table(dat_After2$tea_type2, dat_After2$location) 
+
+names(dat_After2)  
+#calculating mean and sd of data
+dat_After2 %>% 
+  group_by(location, tea_type2) %>%
+  summarise_at(vars(weight2), list(mean = mean, sd = sd))
+
+print(dat_After2)
+
+dat_After2 %>% 
+  drop_na(weight2) %>%
+  ggplot(aes(x = location,
+             y = weight2,
+             fill = tea_type2)) +
+  #geom_violin() +
+  geom_boxplot(varwidth = TRUE) +
+  theme_classic() +
+  scale_fill_manual(values = c("springgreen3", "#FF6070")) +
+  labs(x = "site location", y = "Tea bag weight [g]") + 
+  geom_vline(xintercept = seq(0.5, 16, by = 1), color="gray", size=.5, alpha=.5) + # set vertical lines between x groups
+  labs(title="Tea bag weight after 90 days") +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("Exp1WeightGraph.png", width = 12, height = 8, units = "cm", scale = 1.2)
+
+help(geom_boxplot)
+
+#find sites to be removed
+dat_After2 %>% 
+  group_by(location, tea_type2) %>%
+  count() %>% 
+  filter(n < 3) %>% 
+  select(location) -> remove_sites
+
+remove_sites <- unique(remove_sites$location) #vector of codes
+
+#reduce data frame
+dat_After3 <- subset(dat_After2, !(location %in% remove_sites))
+dim(dat_After3) #105
+
+#change to factor and column name before joining
+dat_Mean$tea_type2 <- as.factor(dat_Mean$tea_type)
+
+# add column with initial average weights
+dat_After3 <- left_join(dat_After3, dat_Mean, by = "tea_type2")
+
+#calculate percent mass loss separately for R and G
+dat_After3$pct_change <- (dat_After3$weight2 - dat_After3$mean) / dat_After3$mean * 100
+
+names(dat_After3)
+#plot pct_change
+dat_After3 %>%
+  ggplot(aes(x = location,
+             y = pct_change,
+             fill = tea_type)) +
+  geom_boxplot(varwidth = TRUE) +
+  theme_classic() +
+  scale_fill_manual(values = c("springgreen3", "#FF6070")) +
+  labs(x = "site location", y = "Tea bag weight change %") + 
+  geom_vline(xintercept = seq(0.5, 16, by = 1), color="gray", size=.5, alpha=.5) + # set vertical lines between x groups
+  labs(title="Tea bag weight % change after 90 days") +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("Exp1SiteWeight.png", width = 12, height = 8, units = "cm", scale = 1.2)
+
+#calculate ratio of G to R
+names(dat_After3)
+
+dat_After3 %>% 
+  group_by(location, tea_type) %>%
+  summarise(pctmean = mean(pct_change)) -> dat_After3_means
+dat_After3_means
+
+dat_After3_means %>% group_by(location) %>% pivot_wider(names_from = tea_type, values_from = pctmean) -> dat_After3_means_wide
+
+dat_After3_means_wide$RG_ratio <- dat_After3_means_wide$R / dat_After3_means_wide$G
+
+#barplot of RG_ratio
+
+
+dat_After3_means_wide %>% ggplot(aes(x = location, y = RG_ratio)) + 
+  geom_col() +
+  labs(x = "site location", y = "% loss ratio of Rooibos to Green tea",title="Ratio of Percentage Change") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("figure8.png", width = 12, height = 6, units = "cm", scale = 1.2)
+
+```
+
+Join decomposotion and water data tables
+```{r}
+dat_water <- dat_water %>% rename("location" = "location_num")
+dat_After4 <- left_join(ungroup(dat_After3_means_wide), dat_water)
+#str(dat_After4)
+```
+
+G percent decomposition and water characteristics
+
+```{r}
+#making graphs for different water characteristics
+g1 <- dat_After4 %>% ggplot(aes(x = water_tempC, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "% Change", title = "Effect of temp on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g2 <- dat_After4 %>% ggplot(aes(x = water_pH, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "% Change", title = "Effect of pH on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g3 <- dat_After4 %>% ggplot(aes(x = Turbidity_NTU, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "% Change", title = "Effect of turbidity on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g4 <- dat_After4 %>% ggplot(aes(x = water_ppM, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "% Change", title = "Effect of minerals on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g5 <- dat_After4 %>% ggplot(aes(x = Amonia_mgL, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "% Change", title = "Effect of amonia on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g6 <- dat_After4 %>% ggplot(aes(x = Nitrate_mgL, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "% Change", title = "Effect of nitrate on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#Combining graphs into a figure
+g1 + g2 + g3 + g4 + g5 + g6 +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+
+ggsave("water_G_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
+
+G percent decomposition and water characteristics
+
+```{r}
+str(dat_After4)
+#making graphs of correlation between water characteristics and decomposition 
+r1 <- dat_After4 %>% ggplot(aes(x = water_tempC, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "% Change", title = "Effect of temp on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r2 <- dat_After4 %>% ggplot(aes(x = water_pH, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "% Change", title = "Effect of pH on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r3 <- dat_After4 %>% ggplot(aes(x = Turbidity_NTU, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "% Change", title = "Effect of turbidity on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r4 <- dat_After4 %>% ggplot(aes(x = water_ppM, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "% Change", title = "Effect of minerals on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r5 <- dat_After4 %>% ggplot(aes(x = Amonia_mgL, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "% Change", title = "Effect of amonia on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r6 <- dat_After4 %>% ggplot(aes(x = Nitrate_mgL, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "% Change", title = "Effect of nitrate on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#combining graphs into a figure
+r1 + r2 + r3 + r4 + r5 + r6 +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+ggsave("water_R_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
+
+RG ratio decomposition index and water characteristics
+
+Join decomposotion and water data tables
+```{r}
+#Graphing correlation between RG ratio and decomposition
+w1 <- dat_After4 %>% ggplot(aes(x = water_tempC, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "RG ratio", title = "Effect of temp on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w2 <- dat_After4 %>% ggplot(aes(x = water_pH, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "RG ratio", title = "Effect of pH on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w3 <- dat_After4 %>% ggplot(aes(x = Turbidity_NTU, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "RG ratio", title = "Effect of turbidity on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w4 <- dat_After4 %>% ggplot(aes(x = water_ppM, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "RG ratio", title = "Effect of minerals on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w5 <- dat_After4 %>% ggplot(aes(x = Amonia_mgL, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "RG ratio", title = "Effect of amonia on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w6 <- dat_After4 %>% ggplot(aes(x = Nitrate_mgL, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "RG ratio", title = "Effect of nitrate on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#combining graphs into a figure
+w1 + w2 + w3 + w4 + w5 + w6 +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+ggsave("water_RG_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
+
+
+Experiment 2
+
+```{r}
+#getting data from spreadsheet into experiment2
+experiment2 <- read_excel("Data/EXPERIMENT2.xlsx")
+names(experiment2) = c("Bag_number", "Tea_Type", "Weight_Before", "Weight_After","site2")
+
+
+#Finding mean and sd of R and G teabags in experiment2
+experiment2 %>% 
+  group_by(Tea_Type) %>%
+  summarise_at(vars(Weight_Before), list(mean = mean, sd = sd)) -> exp_Mean
+experiment2 %>% 
+  group_by(Tea_Type) %>%
+  summarise_at(vars(Weight_After), list(mean = mean, sd = sd)) -> exp_Mean2
+
+
+#graph for original weight of teabags
+mean1 <- ggplot(exp_Mean, aes(x = Tea_Type, y = mean)) + 
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.3) +
+  theme_classic() +
+  geom_point(size = 2) + 
+  ylim(0, 2.5) +
+  labs(x = "Type of tea", y = "Weight [g]",title="Tea bag weight before") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+#graph for after weight of teabags
+mean2 <- ggplot(exp_Mean2, aes(x = Tea_Type, y = mean)) + 
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), width=.3) +
+  theme_classic() +
+  geom_point(size = 2) + 
+  ylim(0, 2.5) +
+  labs(x = "Type of tea", y = "Weight [g]",title="Tea bag weight after") + 
+  theme(plot.title = element_text(hjust = 0.5))
+#combining graphs into figure
+mean1 + mean2
+ggsave("MeansGraph2.png", width = 16, height = 8, units = "cm")
+```
+
+```{r}
+
+#percent weight change for G
+100 - 0.6233881	/ 2.141744 * 100 #71% loss
+#percent weight change for R
+100 - 1.2017013 / 1.845925 * 100 #35% loss
+
+#error propagation for G
+0.6233881	/ 2.141744 * sqrt((0.04704403 /2.141744)^2 + (0.2581518	/0.6233881)^2 )*100 # 12.07029
+#error propagation for R
+1.2017013 / 1.845925 * sqrt((0.04811922	/1.845925)^2 + (0.2953956	/1.2017013 )^2 )*100 # 16.09231
+
+#lnCVR effect size - change of variation on log scale:
+#G
+log((0.2581518 / 0.6233881) / (0.04704403/2.141744)) #2.93667
+#R
+log((0.2953956	/1.2017013) / (0.04811922	/1.845925)) #2.243876
+
+```
+
+#Site-specific effects
+``` {r}
+experiment2 %>% 
+  group_by(site2, .drop = FALSE) %>%
+  count() #just counts all rows
+  
+dim(experiment2) #400
+experiment2$Weight_Before
+experiment2$Weight_After
+
+table(experiment2$Tea_Type, experiment2$site2) 
+
+names(experiment2)  
+#getting mean and sd of experiment2 samples before and after experiment
+experiment2 %>% 
+  group_by(site2, Tea_Type) %>%
+  summarise_at(vars(Weight_Before), list(mean = mean, sd = sd))
+
+experiment2 %>% 
+  group_by(site2, Tea_Type) %>%
+  summarise_at(vars(Weight_After), list(mean = mean, sd = sd))
+
+#making boxplot for gram change of samples from decomposition
+experiment2 %>% 
+  drop_na(Weight_After) %>%
+  ggplot(aes(x = site2,
+             y = Weight_After,
+             fill = Tea_Type)) +
+  geom_boxplot(varwidth = TRUE) +
+  theme_classic() +
+  scale_fill_manual(values = c("springgreen3", "#FF6070")) +
+  labs(x = "site location", y = "Tea bag weight [g]") + 
+  geom_vline(xintercept = seq(0.5, 21, by = 1), color="gray", size=.5, alpha=.5) + # set vertical lines between x groups
+  labs(title="Tea bag weight after 90 days") +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("Exp2WeightGraph.png", width = 12, height = 8, units = "cm", scale = 1.2)
+
+#calculate percent mass loss separately for R and G
+experiment2$pct_change <- (experiment2$Weight_After - experiment2$Weight_Before) / experiment2$Weight_Before * 100
+
+#check outliers
+experiment2 %>% 
+  filter(pct_change > -5) %>% View()
+
+
+#plot for pct_change of samples 
+experiment2 %>%
+  ggplot(aes(x = site2,
+             y = pct_change,
+             fill = Tea_Type)) +
+  geom_boxplot(varwidth = TRUE) +
+  theme_classic() +
+  scale_fill_manual(values = c("springgreen3", "#FF6070")) +
+  labs(x = "site location", y = "Tea bag weight change %") + 
+  geom_vline(xintercept = seq(0.5, 21, by = 1), color="gray", size=.5, alpha=.5) + # set vertical lines between x groups
+  labs(title="Tea bag weight % change after 90 days") +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("Exp2SiteWeight.png", width = 12, height = 8, units = "cm", scale = 1.2)
+
+
+
+#calculate ratio of G to R - using mean values of R and G percent change
+names(experiment2)
+names(dat_After3)
+
+experiment2 %>% 
+  group_by(site2, Tea_Type) %>%
+  summarise(pctmean = mean(pct_change)) -> experiment2_means
+dexperiment2_means
+
+experiment2_means %>% group_by(site2) %>% pivot_wider(names_from = Tea_Type, values_from = pctmean) -> experiment2_means_wide
+
+experiment2_means_wide$RG_ratio <- experiment2_means_wide$R / experiment2_means_wide$G
+
+#barplot of RG_ratio
+
+experiment2_means_wide %>% ggplot(aes(x = site2, y = RG_ratio)) + 
+  geom_col() +
+  labs(x = "site location", y = "% loss ratio of Rooibos to Green tea",title="Ratio of Percentage Change") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("figureExp2.png", width = 12, height = 6, units = "cm", scale = 1.2)
+
+```
+
+Join decomposotion and water data tables
+```{r}
+names(experiment2_means_wide)
+names(dat_water)
+dat_water$location <- dat_water$location_num
+experiment2_means_wide <- experiment2_means_wide %>% rename("location" = "site2")
+experiment2_means_wide <- left_join(ungroup(experiment2_means_wide), dat_water)
+names(experiment2_means_wide)
+```
+
+G percent decomposition and water characteristics
+
+```{r}
+#making plots for correlation between green decomposition and water parameters
+g21 <- experiment2_means_wide %>% ggplot(aes(x = water_tempC, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "% Change", title = "Effect of temp on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g22 <- experiment2_means_wide %>% ggplot(aes(x = water_pH, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "% Change", title = "Effect of pH on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g23 <- experiment2_means_wide %>% ggplot(aes(x = Turbidity_NTU, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "% Change", title = "Effect of turbidity on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g24 <- experiment2_means_wide %>% ggplot(aes(x = water_ppM, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "% Change", title = "Effect of minerals on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g25 <- experiment2_means_wide %>% ggplot(aes(x = Amonia_mgL, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "% Change", title = "Effect of amonia on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+g26 <- experiment2_means_wide %>% ggplot(aes(x = Nitrate_mgL, y = -G)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "% Change", title = "Effect of nitrate on green tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#combining graphs together to create figure
+g21 + g22 + g23 + g24 + g25 + g26 +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+
+ggsave("Exp2G_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
+
+R percent decomposition and water characteristics
+
+```{r}
+#graph for rooibos weight correlation to water parameters
+r21 <- experiment2_means_wide %>% ggplot(aes(x = water_tempC, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "% Change", title = "Effect of temp on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r22 <- experiment2_means_wide %>% ggplot(aes(x = water_pH, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "% Change", title = "Effect of pH on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r23 <- experiment2_means_wide %>% ggplot(aes(x = Turbidity_NTU, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "% Change", title = "Effect of turbidity on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r24 <- experiment2_means_wide %>% ggplot(aes(x = water_ppM, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "% Change", title = "Effect of minerals on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r25 <- experiment2_means_wide %>% ggplot(aes(x = Amonia_mgL, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "% Change", title = "Effect of amonia on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+r26 <- experiment2_means_wide %>% ggplot(aes(x = Nitrate_mgL, y = -R)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "% Change", title = "Effect of nitrate on rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#combining graphs into figure
+r21 + r22 + r23 + r24 + r25 + r26 +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+ggsave("Exp2R_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
+
+RG ratio decomposition index and water characteristics
+
+```{r}
+#making plots for correlation between RG ratio and water parameters
+w21 <- experiment2_means_wide %>% ggplot(aes(x = water_tempC, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "RG ratio", title = "Effect of temp on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w22 <- experiment2_means_wide %>% ggplot(aes(x = water_pH, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "RG ratio", title = "Effect of pH on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w23 <- experiment2_means_wide %>% ggplot(aes(x = Turbidity_NTU, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "RG ratio", title = "Effect of turbidity on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w24 <- experiment2_means_wide %>% ggplot(aes(x = water_ppM, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "RG ratio", title = "Effect of minerals on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w25 <- experiment2_means_wide %>% ggplot(aes(x = Amonia_mgL, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "RG ratio", title = "Effect of amonia on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w26 <- experiment2_means_wide %>% ggplot(aes(x = Nitrate_mgL, y = RG_ratio)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "RG ratio", title = "Effect of nitrate on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#combining graphs into figure
+w21 + w22 + w23 + w24 + w25 + w26 +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+ggsave("Exp2RG_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
+
+### Compare means from Experiment1 and Experimen2
+
+```{r}
+#merge by location
+
+experiments12 <- left_join(dat_After3_means_wide, experiment2_means_wide, by = c("location"))
+names(experiments12)
+#graph for comparison between experiment1 and experiment2 mean % change in green tea
+exp12G <- experiments12 %>% 
+  ggplot(aes(x = -G.x, y = -G.y)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "experiment1 mean % change", y = "experiment2 mean % change", title = "Experiment1 vs Experiment2 green tea decomposition") +
+  geom_smooth(method = lm) +
+  #ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+experiments12 <- left_join(dat_After3_means_wide, experiment2_means_wide, by = c("location"))
+names(experiments12)
+#graph for comparison between experiment1 and experiment2 mean % change in rooibos tea
+exp12R <- experiments12 %>% 
+  ggplot(aes(x = -R.x, y = -R.y)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "experiment1 mean % change", y = "experiment2 mean % change", title = "Experiment1 vs Experiment2 rooibos tea decomposition") +
+  geom_smooth(method = lm) +
+  #ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#graph for comparison between experiment1 and experiment2 mean % change in RG ratio
+exp12RG <- experiments12 %>% 
+  ggplot(aes(x = -RG_ratio.x, y = -RG_ratio.y)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "experiment1 mean ratio % changes", y = "experiment2 mean ratio % changes", title = "Experiment1 vs Experiment2 rooibos to green ratio") +
+  geom_smooth(method = lm) +
+  #ylim(0, 100) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+#combining graphs toghether into figure
+exp12RG + exp12G + exp12R +
+  plot_layout(nrow = 3, ncol = 1) + 
+  plot_annotation(tag_levels = "A")
+ggsave("Exp1to2cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+  
+  
+  
+```
+
+
+
+
+
+
+
+
+
+
+
+
+##################### Explore catgorical water types
+
+RG ratio decomposition index and water characteristics
+
+By natural or artificial sites for water
+```{r}
+w21a <- experiment2_means_wide %>% ggplot(aes(x = water_tempC, y = RG_ratio, color = Natural)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "RG ratio", title = "Effect of temp on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w22a <- experiment2_means_wide %>% ggplot(aes(x = water_pH, y = RG_ratio, color = Natural)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "RG ratio", title = "Effect of pH on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w23a <- experiment2_means_wide %>% ggplot(aes(x = Turbidity_NTU, y = RG_ratio, color = Natural)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "RG ratio", title = "Effect of turbidity on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w24a <- experiment2_means_wide %>% ggplot(aes(x = water_ppM, y = RG_ratio, color = Natural)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "RG ratio", title = "Effect of minerals on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w25a <- experiment2_means_wide %>% ggplot(aes(x = Amonia_mgL, y = RG_ratio, color = Natural)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "RG ratio", title = "Effect of amonia on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w26a <- experiment2_means_wide %>% ggplot(aes(x = Nitrate_mgL, y = RG_ratio, color = Natural)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "RG ratio", title = "Effect of nitrate on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w21a + w22a + w23a + w24a + w25a + w26a +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+ggsave("Exp2RGa_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
+
+By flowing versus still water
+```{r}
+w21b <- experiment2_means_wide %>% ggplot(aes(x = water_tempC, y = RG_ratio, color = Flowing)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water Temp", y = "RG ratio", title = "Effect of temp on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w22b <- experiment2_means_wide %>% ggplot(aes(x = water_pH, y = RG_ratio, color = Flowing)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water pH", y = "RG ratio", title = "Effect of pH on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w23b <- experiment2_means_wide %>% ggplot(aes(x = Turbidity_NTU, y = RG_ratio, color = Flowing)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water NTU", y = "RG ratio", title = "Effect of turbidity on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w24b <- experiment2_means_wide %>% ggplot(aes(x = water_ppM, y = RG_ratio, color = Flowing)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water ppM", y = "RG ratio", title = "Effect of minerals on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w25b <- experiment2_means_wide %>% ggplot(aes(x = Amonia_mgL, y = RG_ratio, color = Flowing)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water amonia mg/L", y = "RG ratio", title = "Effect of amonia on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w26b <- experiment2_means_wide %>% ggplot(aes(x = Nitrate_mgL, y = RG_ratio, color = Flowing)) + 
+  geom_point(alpha = 0.5) + 
+  labs(x = "Water nitrate mg/L", y = "RG ratio", title = "Effect of nitrate on relative decomposition") +
+  geom_smooth(method = lm) +
+  ylim(0, 1) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+
+w21b + w22b + w23b + w24b + w25b + w26b +
+  plot_layout(nrow = 3, ncol = 2) + 
+  plot_annotation(tag_levels = "A")
+ggsave("Exp2RGb_cor.png", width = 16, height = 12, units = "cm", scale = 1.6)
+```
